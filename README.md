@@ -8,6 +8,7 @@ Airbnb, which stands for Air Beds & Breakfast, is a marketplace that connects tr
 New York City (NYC) has an extremely active Airbnb market with more than 48,000 listings as of August 2019 (this corresponds to a rental density of 102 rentals per square mile). 
 
 #### There is only one rmd file, and everything is included in it.
+#### For exploratory analysis, we start with text analysis and sentiment analysis for listing names.
 #### Five models were used to analyze the dataset: linear regression, logistic regression, k-nearest neighbors, tree models, and Neural Nets.
 #### We also apply 3-fold cross validation, variable selection approaches (backward, forward, and subset selection, and ensemble methods (bagging, random forest, and boosting, XGboost) to help us verify and tuning models. 
 
