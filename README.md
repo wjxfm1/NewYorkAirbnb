@@ -24,7 +24,7 @@ Perform exploratory analysis.
 Run ML models including linear regression, logistic regression, k-nearest neighbors, tree models, and Neural Nets. We also apply 70% data to be training data and 30% data to be testing data, with variable selection approaches, such as backward selection, forward selection, and subset selection, and ensemble methods, such as bagging, random forest, and boosting to verify and tune models.
 
 * #### Step 5
-Create a word cloud with a word frequency bar plot below it. The top 4 most frequently used words are room, bedroom, private, and apartment.
+Create a word cloud with a word frequency bar plot below it. The top 4 most frequently used words are room, bedroom, private, and apartment. We also conduct sentiment analysis, which suggests the sentiment expressed by the listing names is full of joy, anticipation, and trust. 
 
 
 
