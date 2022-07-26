@@ -1,0 +1,1345 @@
+---
+title: "5 minites"
+author: "Jie Wang"
+date: "10/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+airbnb<- read.csv("C:\\Users\\edwar\\Documents\\BMIS\\AB_NYC_2019.csv",header = T)
+dim(airbnb)
+summary(airbnb)
+sum(is.na(airbnb))
+```
+
+Visual representation of missing values
+```{r}
+# tabulate missing values patters
+library(VIM)
+library(mice)
+md.pattern(airbnb)
+
+# plot missing values patterns
+aggr(airbnb, prop=FALSE, numbers=TRUE)
+matrixplot(airbnb)
+```
+It seems like all the missing values come from variable "reviews_per_month". Since we already have the similar information from variable "number_of _reviews", we can just simply drop this variable.
+
+```{r}
+library(dplyr)
+airbnb<-data.frame(airbnb)
+airbnb1<-select(airbnb,-reviews_per_month) # drop the unwanted column
+dim(airbnb1)
+sum(is.na(airbnb1))
+summary(airbnb1)
+```
+  Now, we successfully drop the column containing all missing values, and the data set is clean and ready to be analyzed.
+  
+```{r}
+# another way to drop a column and calculate the percentage
+# Remove variable "reviews_per_month"
+airbnb_Var_dropped <- airbnb # Create a new temporary dataframe 
+airbnb_Var_dropped$reviews_per_month <- NULL
+
+
+airbnb_Missing_dropped <- na.omit(airbnb_Var_dropped)
+Dropped_percent <- (nrow(airbnb_Var_dropped) - nrow(airbnb_Missing_dropped))/nrow(airbnb_Var_dropped)
+Dropped_percent
+```
+
+Since we delete the whole column, we don't lose any data points.
+
+Now, let's do some visual analysis.
+
+
+
+### Data Visualization: Plotting
+
+***
+
+```{r}
+par(mfrow=c(2,2))
+library(ggplot2)
+hist(airbnb1$price)
+hist(airbnb1$minimum_nights)
+hist(airbnb1$number_of_reviews)
+hist(airbnb1$availability_365)
+```
+
+All 4 variables are right skewed. Transformation may needed but hard to interpret. Another way is to transfer to categorical variables.
+
+
+The ggplot base container:
+```{r}
+
+library(ggplot2)
+#Scatter plot:
+
+ggplot(data = airbnb1) + 
+  geom_point(mapping = aes(x = price, y = number_of_reviews, color = room_type)) +
+    labs(x = "Price in dollars", y = "Number of reviews")
+
+```
+
+  We can see that the number of reviews decreases with the increase of price. This may due to the reason that expensive airbnbs is not affordable for most customers.
+  
+
+
+A scatter plot showing the relationship between price and number of reviews, along with a suitable regression line that depicts the trend.
+
+```{r}
+
+
+ggplot(data = airbnb1) + 
+  geom_point(mapping = aes(x = price, y = number_of_reviews, color = room_type)) +
+  labs(x = "Price in dollars", y = "Number of reviews") # Add label
+
+ggplot(data = airbnb1) + 
+  geom_smooth(mapping = aes(x = price, y = number_of_reviews, color = room_type)) +
+  labs(x = "Price in dollars", y = "Number of reviews") # Add label
+```
+
+A horizontal bar graph showing the distribution of the number of reviews in each neighborhood group in descending order of the count.
+
+```{r}
+library(dplyr)
+
+
+airbnb1 %>% 
+	group_by(neighbourhood_group) %>%  #group by state.of.res.
+	summarise(count = n()) %>%  #Count observations by group
+   ggplot(aes(x = reorder(neighbourhood_group,(count)), y = count)) +  #reorder the x and y, note that (-count) for ascending order
+	  geom_bar(stat = 'identity',fill = "#FF6666")+   #the heights of the bars represent values in the data, use stat="identity" and map a value to the y aesthetic."
+     coord_flip()+     # flip x and y and shown in descending order		
+      ggtitle("Distribution of reviews Across neighbourhood group") # Add title
+
+```
+
+```{r}
+library(dplyr)
+
+
+airbnb1 %>% 
+	group_by(room_type) %>%  #group by room_type
+	summarise(count = n()) %>%  #Count observations by group
+   ggplot(aes(x = reorder(room_type,(count)), y = count)) +  #reorder the x and y, note that (-count) for ascending order
+	  geom_bar(stat = 'identity',fill = "#FF6666")+   #the heights of the bars represent values in the data, use stat="identity" and map a value to the y aesthetic."
+     coord_flip()+     # flip x and y and shown in descending order		
+      ggtitle("Distribution of reviews Across neighbourhood group") # Add title
+
+```
+
+ Plot a bar-chart. 
+```{r}
+
+ggplot(data = airbnb1) + 
+  geom_bar(mapping = aes(x = neighbourhood_group, fill=room_type))
+
+```
+
+ Here, we only consider reviews under 60.
+
+```{r}
+
+airbnb1 %>% 
+  filter(number_of_reviews < 60) %>%
+ggplot(aes(x = neighbourhood_group, y = number_of_reviews)) + 
+  geom_boxplot()
+```
+
+Plot two side-by-side box plots. It's hard to see the average line.
+```{r}
+#airbnb1 %>% 
+  #filter(ggplot()+
+ggplot(data = airbnb1,mapping = aes(x = neighbourhood_group, y = price)) + 
+  geom_boxplot()
+
+
+
+```
+
+```{r}
+ggplot(data = airbnb1, mapping = aes(x = neighbourhood_group, y = availability_365)) + 
+  geom_boxplot()
+
+```
+```{r}
+ggplot(data = airbnb1, mapping = aes(x = room_type, y = availability_365)) + 
+  geom_boxplot()
+
+```
+
+
+
+```{r}
+ggplot(data = airbnb1, mapping = aes(x = room_type, y = minimum_nights)) + 
+  geom_boxplot()
+
+```
+```{r}
+airbnb1 %>% 
+  filter(number_of_reviews < 60) %>%
+ggplot(aes(x = room_type, y = number_of_reviews)) + 
+  geom_boxplot()
+
+```
+
+
+we try to cut price into different levels based on 5 number summary statistics.
+
+```{r}
+sum( airbnb1$price> 174)
+#hist(airbnb1$price, breaks = 100)
+
+
+```
+
+```{r}
+library(dplyr)
+
+airbnb1 <- airbnb1 %>% mutate(price.level = case_when(price < 69 ~ '1',
+                                             price > 68  & price < 106 ~ '2',
+                                           price > 105  & price <175 ~ '3',
+                                           price > 174 ~ '4')) # end function
+#view(airbnb1)
+
+ggplot(data = airbnb1) + 
+  geom_bar(mapping = aes(x = price.level, fill=room_type))
+
+
+```
+
+```{r}
+ggplot(data = airbnb1, mapping = aes(x = price.level, y = availability_365)) + 
+  geom_boxplot()
+
+```
+
+```{r}
+ggplot(data = airbnb1) + 
+  geom_bar(mapping = aes(x = price.level, fill=neighbourhood_group))
+
+
+```
+
+
+
+```{r}
+base1<-ggplot(data=airbnb1, aes(x=neighbourhood_group, fill=price.level)) + 
+  geom_bar()
+
+base1+facet_wrap(~ room_type)
+
+```
+
+
+```{r}
+#We found some qualitative features.
+col.qli<-names(airbnb1)%in%c("id","name", "host_id","host_name", "neighbourhood_group", "neighbourhood", "room_type", "last_review", "price.level", "calculated_host_listings_count")
+
+lapply(airbnb1[,!col.qli],range)
+
+pairs(airbnb1[,!col.qli])
+
+
+
+
+```
+
+```{r}
+library(corrplot)
+#install.packages("corrgram")
+library(corrgram)
+quanti<-airbnb1[,!col.qli]
+corrplot(corrgram(quanti), method = 'number', order = 'AOE', type = 'upper')
+
+
+
+```
+  We found that the correlations of each pair are weak.
+  
+```{r}
+airbnb1 %>% 
+  ggplot(aes(x = longitude, y = latitude, color= neighbourhood_group)) + 
+  geom_point(alpha = 0.4) 
+
+```
+
+ we further filter the price to be less than $450, just to show the trend more clearly.
+
+```{r}
+airbnb1 %>% 
+  filter(price < 450) %>% # choose a cut off point
+  ggplot(aes(x = longitude, y = latitude, color= price)) + 
+  geom_point(alpha = 0.6) +
+  scale_colour_gradient2(low = "grey", mid = "blue", high = "red", midpoint = 100)    
+
+```
+
+Obviously, Manhanttan owns more expensive airbnbs. 
+
+
+***
+
+Part 2 Modelling
+
+
+***
+
+
+1. Regression Analysis
+
+```{r}
+#install.packages("car")
+#install.packages("gvlma")
+#install.packages("MASS")
+#install.packages("leaps")
+#install.packages("effects")
+
+library(car) # car: Companion to Applied Regression. The name of this package is very confusing. The package has nothing to do with "cars". It contains many usefuld function and datasets.
+library(gvlma)
+library(MASS)
+library(leaps)
+library(effects)
+```
+
+### Regression Diagnostics
+
+
+```{r}
+#checking confidence interval
+airbnb2 <- as.data.frame(airbnb1[,c("price", "neighbourhood_group", "latitude", "longitude", "room_type","minimum_nights", "number_of_reviews","availability_365")])
+fit <- lm(price ~., data=airbnb2)
+summary(fit)
+confint(fit)
+```
+
+
+The results suggest that variable "minimum_nights" might not be statistically significant.   
+
+
+Let's see the evaluation of this model by plot() function.
+
+```{r}
+#checking diagnostic plots
+par(mfrow=c(2,2)) # Show plots in 2x2 grid.
+plot(fit)
+summary(fit)
+```
+
+In the residuals plot, more data points are dispersed over 0 than below 0, but no obvious pattern is found. The QQ plot is “skewed right,” meaning that most of the data is distributed on the left side with a long “tail” of data extending out to the right. Thus, the normaility assumption of OLS regression is NOT met. Also, data points #9152, #48044, and #2235 seem to be outliers according to the residuals vs. leverage plot. 
+
+
+## An enhanced/advanced approach
+
+##### Assessing normality
+```{r}
+fit <- lm(price ~., data=airbnb2)
+qqPlot(fit, labels=row.names(airbnb2), id.method="identify",
+       simulate=TRUE, main="Q-Q Plot")
+```
+
+
+#### How to decide where to add non-linear (polynomial) terms:
+You can look for evidence of *nonlinearity* in the relationship between the dependent variable and the independent variables by using component plus residual plots (also known as partial residual plots). The plot is produced by crPlots() function in the car package. You’re looking for any systematic departure from the linear model that you’ve specified.
+
+##### Assessing linearity
+```{r}
+crPlots(fit)
+```
+
+The solid-line is the smoothened plot. We cannot identify nonlinearity in any of these plots. 
+
+##### Assessing homoscedasticity
+The car package also provides two useful functions for identifying non-constant error variance. The ncvTest() function produces a score test of the hypothesis of constant error variance against the alternative that the error variance changes with the level of the fitted values. A significant result suggests heteroscedasticity (nonconstant error variance).
+
+Visualt Test: The spreadLevelPlot() function creates a scatter plot of the absolute standardized residuals versus the fitted values, and superimposes a line of best fit.
+```{r}
+ncvTest(fit)
+spreadLevelPlot(fit)
+summary(fit)
+```
+Here, the null hypothesis is H0 = constant error variance, and the alternative hypothesis is Ha = Non-constant error variance, and alpha = 0.05.
+
+The p-value <0.05 suggest that we reject the null and conclude that the variance is non-constant, which violates the OLS assumption.
+
+
+##### Global test of linear model assumptions
+```{r}
+library(gvlma)
+gvmodel <- gvlma(fit) 
+summary(gvmodel)
+```
+We can see that all the stats are suggesting that *Assumptions are not satisfied* except heteroscedasticity (non-constant variance). It means that we have violated the assumptions of linear regression.
+
+##### Box-Cox Transformation to normality
+* When the model violates the *normality* assumption, you typically attempt a transformation of the *response variable (Y-variable)*. 
+* When the assumption of *linearity* is violated, a transformation of the *predictor variables (X-Variables)* can often help. 
+ 
+Our model seems to violate the assumption of *normality*, so we would try to transform *response variable ("price" in our case)*
+
+
+You can use the powerTransform() function in the car package to generate a maximum-likelihood estimation of the power λ most likely to normalize the variable Xλ. In the next listing, this is applied to the states data.
+```{r}
+#let's filter out price=0 and calculate the power
+library(tidyverse)
+airbnb2_filtered_price <- airbnb2%>% 
+  filter(price > 0) %>% 
+  drop_na()
+
+
+summary(powerTransform(airbnb2_filtered_price$price))
+
+```
+Since "price" is highly skewed, we could try using log 10 transformation for it.
+
+```{r}
+library(ggplot2)
+ggplot(airbnb2, aes(price)) +
+  geom_histogram(bins = 30, aes(y = ..density..), fill = "pink") + 
+  geom_density(alpha = 0.2, fill = "pink") +ggtitle("Transformed distribution of price",
+  subtitle = expression("With" ~'log'[10] ~ "transformation of x-axis")) + scale_x_log10()
+```
+It looks like "price" is more normally distributed than before.
+
+Let's try modeling it after log transformation.
+```{r}
+airbnb3 <- airbnb2 %>% filter(price > 0)
+fit.tr<- lm(log10(price) ~., data=airbnb3)
+qqPlot(fit) #just for comparison
+qqPlot(fit.tr)
+```
+It seems that the normality is better enhanced after transformation, especially in the middle part. But it still has two tails and also hard to interpret in terms of airbnb industry.
+
+
+Let's identify mulicollinearity:
+```{r}
+fit <- lm(price ~., data=airbnb2)
+vif(fit) # The R function vif() can be used to detect multicollinearity in a regression model. The rule of thumb: vif > 4 means presence of Multi-collinearity.
+max(vif(fit))
+```
+We see that the variable "neighbourhood_group" has the highest vif (6.645084). A vif value of more than 4 is considered high. Thus, let's remove this variable and obtain the vifs again:
+
+```{r}
+fit1=lm(price ~.-neighbourhood_group, data=airbnb2)
+# summary(lm.fit1)
+vif(fit1)
+max(vif(fit1))
+```
+
+We can visualize interactions using the effect() function in the effects package.
+```{r}
+#plotting the interaction effect
+#ignore the warning in the following command.
+library(car)
+library(effects)
+# ?effect #to learn more about the function
+par(mfrow=c(2,2))
+plot(effect("neighbourhood_group:longitude", fit,, list(wt=c(2.2, 3.2, 4.2))), multiline=TRUE)
+plot(effect("neighbourhood_group:latitude", fit,, list(wt=c(2.2, 3.2, 4.2))), multiline=TRUE)
+plot(effect("neighbourhood_group:room_type ", fit,, list(wt=c(2.2, 3.2, 4.2))), multiline=TRUE)
+plot(effect("neighbourhood_group:minimum_nights ", fit,, list(wt=c(2.2, 3.2, 4.2))), multiline=TRUE)
+```
+```{r}
+par(mfrow=c(2,2))
+plot(effect("latitude:longitude", fit,, list(wt=c(2.2, 3.2, 4.2))), multiline=TRUE)
+plot(effect("longitude:room_type", fit,, list(wt=c(2.2, 3.2, 4.2))), multiline=TRUE)
+plot(effect("latitude:room_type ", fit,, list(wt=c(2.2, 3.2, 4.2))), multiline=TRUE)
+plot(effect("room_type:minimum_nights ", fit,, list(wt=c(2.2, 3.2, 4.2))), multiline=TRUE)
+```
+```{r}
+par(mfrow=c(2,1))
+plot(effect("room_type:number_of_reviews", fit,, list(wt=c(2.2, 3.2, 4.2))), multiline=TRUE)
+
+plot(effect("latitude:minimum_nights ", fit,, list(wt=c(2.2, 3.2, 4.2))), multiline=TRUE)
+```
+
+We have not found any interactions among each two pairs of variables.
+
+***
+Linear regression for prediction, validation part
+***
+
+Partition data
+```{r}
+#training set will be 70% percent and testing data will be 30% of the original data. 
+set.seed(211)
+train.index <- sample(c(1:dim(airbnb2)[1]), dim(airbnb2)[1]*0.7)  
+train <- airbnb2[train.index, ]
+test <- airbnb2[-train.index, ]
+```
+
+
+Build the linear model
+
+```{r}
+linear<-lm(price~., data = train)
+summary(linear)
+```
+
+Predict the model
+```{r}
+linear.pred<-predict(linear, test, type = 'response')
+```
+
+get the test error = Mean square error (MSE)
+```{r}
+mean((linear.pred-test$price)^2)
+```
+
+***
+
+Subset selection
+
+
+***
+
+1. Best subset selection
+
+```{r}
+#install.packages("leaps")
+library(leaps)
+fit.full=regsubsets(price~., data = train)
+
+summary(fit.full)
+```
+* An asterisk indicates that a given variable is included in the corresponding model. 
+* By default, regsubsets() only reports results up to the best eight-variable model. 
+
+The *nvmax* option can be used in order to return as many variables as are desired. Here we fit up to a 7-variable model.
+```{r}
+regfit.full=regsubsets(price~., data = train,nvmax=7)
+reg.summary=summary(regfit.full)
+reg.summary
+names(reg.summary)
+```
+Evaluating each model using R-Square
+```{r}
+reg.summary$rsq
+```
+From above, we can see that by adding more variables we are able to increase RSQ. How many variables should we select? Let's decide that using a plot:
+
+```{r}
+RSQdata <- as.data.frame(reg.summary$rsq)
+names(RSQdata)<-"R2" # Renaming the column as "R2"
+
+# Plot
+ggplot(RSQdata,aes(x = c(1:nrow(RSQdata)), y = R2)) +
+  geom_point()+
+  labs(x="Number of Model Variables")+
+  labs(title="R^2 increases with Variables")
+```
+* Using the plot, we see that R-Squared doesn't increase too much after 6 variables. Thus, selecting a 6-variable model may be good.  
+
+* There is a drawback with R-Squared. It continues to increase with the number of variables. We can instead use Adjusted R-Squared, which adjusts the value of R-Squared according to the number of variables uses (by penalizing for using more variables). 
+
+```{r}
+adjRSQdata <- as.data.frame(reg.summary$adjr2)
+names(adjRSQdata)<-"adjR2"
+ggplot(adjRSQdata,aes(x = c(1:nrow(adjRSQdata)), y = adjR2)) +
+  geom_point()+
+  labs(x="Number of Model Variables")+
+  labs(title="Adjusted R^2")
+
+which(max(adjRSQdata)==adjRSQdata) # Finding the number of variables where Adj-R-Squared is maximized
+
+```
+
+We see that the Adj-Rsq are pretty much the same as Rsq plot. And it looks like including 6 variables are nearly the same as including 7 variables in terms of adjusted R^2. 
+
+Using residual sum of squares *RSS* for deciding number of variables (instead of R-Square or Adj-R-Squared): 
+```{r}
+par(mfrow=c(1,2))
+plot(reg.summary$rss,xlab="Number of Variables",ylab="RSS",type="l")
+# plot(reg.summary$adjr2,xlab="Number of Variables",ylab="Adjusted RSq",type="l")
+# which.max(reg.summary$adjr2)
+# Output of above: 11
+# points(11,reg.summary$adjr2[11], col="red",cex=2,pch=20) # Show the maximum point
+```
+The RSS plot also indicates that 6 variables may be the most appropriate (because the error barely decrease after that).
+
+* Similar to R-Squared, RSS also has a drawback that it continues to decrease with the number of variables. We can use "cp" to do this.
+Repeating above with a different criteria: cp (we should choose smallest cp)
+```{r}
+par(mfrow=c(1,2))
+plot(reg.summary$cp,xlab="Number of Variables",ylab="Cp",type='l')
+points(10,reg.summary$cp[10],col="red",cex=2,pch=20)
+which.min(reg.summary$cp)
+
+```
+The Cp plot also indicates that 6 variables may be the most appropriate.
+
+# Using BIC (Bayesian information criterion): Choose the minimum
+```{r}
+which.min(reg.summary$bic)
+plot(reg.summary$bic,xlab="Number of Variables",ylab="BIC",type='l')
+points(6,reg.summary$bic[6],col="red",cex=2,pch=20)
+```
+
+The BIC plot also indicates that 6 variables may be the most appropriate.
+
+The regsubsets() function has a built-in plot() command which can be used to display the selected variables for the best model with a given number of predictors, ranked according to the BIC, Cp, adjusted R2, or AIC. 
+```{r}
+plot(regfit.full,scale="r2")
+plot(regfit.full,scale="adjr2")
+plot(regfit.full,scale="Cp")
+plot(regfit.full,scale="bic")
+
+coef(regfit.full,6) # Gives the values of coefficients when number of variables are 6.
+```
+The top row of each plot contains a black square for each variable selected according to the optimal model associated with that statistic. For instance, we see that several models share a BIC close to −3300. However, the model with the lowest BIC is the six-variable model that contains only neighbourhood_group, longitude, room_type, number_of_reviews, and availability_365. Actually, all the four different Metrics (Rsq, Adj-Rsq, Cp, Bic) choose the same 6 variables.
+
+### Forward and Backward Stepwise Selection
+
+```{r}
+# Forward Method: Start with no variables and keep adding variables one at a time
+regfit.fwd=regsubsets(price~., data =train, nvmax=7, method= 'forward')
+fwd.sum<-summary(regfit.fwd)
+fwd.sum
+```
+```{r}
+library(data.table)
+data.table(vars = 1:7, bic = fwd.sum$bic, adjr2 = fwd.sum$adjr2, cp = fwd.sum$cp)
+```
+Forward selection suggests having all 7 variables will give lowest cp and highest adjust R^2.
+
+# Backward Method: Start with all variables and keep removing variables one at a time
+```{r}
+regfit.bwd=regsubsets(price~., data =train, nvmax=7,method="backward")
+bwd.sum<-summary(regfit.bwd)
+bwd.sum
+
+```
+
+```{r}
+data.table(vars = 1:7, bic = bwd.sum$bic, adjr2 = bwd.sum$adjr2, cp = bwd.sum$cp)
+
+
+```
+Backward selection also suggests having all 7 variables will give lowest cp and  highest adjust R^2.
+
+
+***
+
+####  Logistic Regression
+
+***
+"price" in our dataset is a continuous variable, so we now categorize it to be a categorical variable taking value 0 and 1: 0 = low price and 1 = high price.
+```{r}
+price01 <- rep(0, length(airbnb2$price))
+price01[airbnb2$price > median(airbnb2$price)] <- 1 # Create a variable to represent high price.
+airbnb2.ca <- data.frame(airbnb2, price01)
+
+
+```
+
+```{r}
+View(airbnb2.ca)
+
+```
+
+split data into training and testing data
+```{r}
+#split data
+set.seed(211)
+index.ca=sample(1:nrow(airbnb2),.7*nrow(airbnb2),replace=FALSE)
+train.ca = airbnb2.ca[index.ca,]
+test.ca = airbnb2.ca[-index.ca,]
+
+```
+
+Logisitc Regression approach
+```{r}
+# use glm() (general linear model) with family = "binomial" to fit a logistic regression.
+logit.reg <- glm(price01 ~ . -price, data = train.ca, family = "binomial") 
+options(scipen=999) # Disable scientific notation
+summary(logit.reg)
+```
+
+```{r}
+# use predict() with type = "response" to compute predicted probabilities. 
+logit.reg.pred <- predict(logit.reg, test.ca, type = "response") # exclude continuous price
+
+```
+
+
+#### Model Evaluation
+```{r}
+library(caret)
+# Cutoff = 0.5
+confusionMatrix(as.factor(ifelse(logit.reg.pred > 0.5, 1, 0)), as.factor(test.ca$price01))
+
+# Cutoff = 0.7
+#confusionMatrix(as.factor(ifelse(logit.reg.pred > 0.7, 1, 0)), as.factor(test.ca))
+
+# Cutoff = 0.3
+#confusionMatrix(as.factor(ifelse(logit.reg.pred > 0.3, 1, 0)), as.factor(test.ca))
+```
+
+
+
+```{r}
+# Let's try different cut off value.
+# Cutoff = 0.7
+confusionMatrix(as.factor(ifelse(logit.reg.pred > 0.7, 1, 0)), as.factor(test.ca$price01))
+
+# Cutoff = 0.3
+confusionMatrix(as.factor(ifelse(logit.reg.pred > 0.3, 1, 0)), as.factor(test.ca$price01))
+
+```
+
+ It seems like the accuracy decreases while cut off increase or decrease from 0.5. What is the right cutoff? Let's do the above exercise for all cutoffs.
+```{r}
+
+# create empty accuracy table
+accT = c() 
+# compute accuracy per cutoff
+for (cut in seq(0,1,0.1)){
+  cm <- confusionMatrix(as.factor(1 * (logit.reg.pred > cut)), as.factor(test.ca$price01))
+  accT = c(accT, cm$overall[1])
+}
+# You can use the above for loop for finding the optimal threshold.
+
+# plot accuracy
+plot(accT ~ seq(0,1,0.1), xlab = "Cutoff Value", ylab = "", type = "l", ylim = c(0, 1))
+#lines(1-accT ~ seq(0,1,0.1), type = "l", lty = 2)
+legend("topright",  c("accuracy"), lty = c(1, 2), merge = TRUE)
+```
+ 
+```{r}
+print(accT)
+```
+ 
+```{r}
+which.max(accT)
+```
+The fifth cutoff = 0.4 gives the highest accuracy = 0.8223.
+
+
+
+#### Automating the above steps for all possible cutoffs: ROC Curve
+```{r}
+library(pROC)
+r <- roc(test.ca$price01, logit.reg.pred)
+plot.roc(r)
+auc(r)
+```
+  We found that the area under the curve: 0.8901.
+
+
+***
+# Tree-based prediction approaches using rpart package
+***
+First, we fit a decision tree model.
+```{r}
+# The complexity parameter (cp) is used to control the size of the decision tree. cp = 0 means deepest tree.
+# Try using cp = 0.01 etc.
+library(rpart)
+deeper.ct <- rpart(price01 ~ .-price, data = train.ca, method = "class", cp = 0.01, minsplit = 1) 
+
+# Count number of leaves
+length(deeper.ct$frame$var[deeper.ct$frame$var == "<leaf>"])
+
+# Plot tree
+library(rpart.plot)
+prp(deeper.ct, type = 1, extra = 1, under = TRUE, split.font = 1, varlen = -10, #extra = 1 display the number of observations that fall in the node;varlen = Default -8, meaning truncate to eight characters.
+    box.col=ifelse(deeper.ct$frame$var == "<leaf>", 'gray', 'white'))  
+```
+##### Pruning: Finding the right depth of the tree.
+
+
+```{r}
+set.seed(211)
+# minsplit: The minimum number of observations in a node for a split to be attempted. 
+# xval: The number K of folds in a K-fold cross-validation.
+cv.ct <- rpart(price01 ~ .-price, data = train.ca, method = "class", cp = 0.00001, minsplit = 1, xval = 5)  
+
+# Print out the complexity parameter (cp) table of cross-validation errors. The R-squared for a regression tree is 1 minus rel error. 
+# xerror (or relative cross-validation error where "x" stands for "cross") is a scaled version of overall average of the 5 out-of-sample errors across the 5 folds.
+cp_table <- printcp(cv.ct)  
+#cp_table
+```
+
+Plotting 
+```{r}
+par(mfrow=c(2,3))
+
+# Plot nsplit vs errors
+plot(cp_table[,2],cp_table[,3], xlab = "nsplit", ylab = "rel error", type = "l") # Plotting nsplit v/s rel error
+plot(cp_table[,2],cp_table[,4], xlab = "nsplit", ylab = "xerror", type = "l") # Plotting nsplit v/s xerror
+plot(cp_table[,2],cp_table[,5], xlab = "nsplit", ylab = "xstd", type = "l") # Plotting nsplit v/s xstd
+
+# Plot cp vs errors
+plot(cp_table[,1],cp_table[,3], xlab = "cp", ylab = "rel error", type = "l") # Plotting cp v/s rel error
+plot(cp_table[,1],cp_table[,4], xlab = "cp", ylab = "xerror", type = "l") # Plotting cp v/s xerror
+plot(cp_table[,1],cp_table[,5], xlab = "cp", ylab = "xstd", type = "l") # Plotting cp v/s xstd
+
+```
+
+It appears that nsplit = 62 (cp = 0.000272889 ) achieves the best outcome. Thus, we use cp = 0.000329218 now.
+
+```{r}
+pruned.ct <- prune(cv.ct, cp = 0.000272889)
+prp(pruned.ct, type = 1, extra = 1, under = TRUE, split.font = 1, varlen = -10, 
+    box.col=ifelse(pruned.ct$frame$var == "<leaf>", 'gray', 'white')) 
+```
+##### Variable Importance
+```{r}
+library(randomForest)
+library(caret)
+## random forest
+rf <- randomForest(as.factor(price01) ~ .-price, data = train.ca, ntree = 500, 
+                   mtry = 4, nodesize = 5, importance = TRUE)  
+
+## variable importance plot
+varImpPlot(rf, type = 1) # type: =1 means decreasing in accuracy, =2 means decreasing in node impurity
+varImpPlot(rf, type = 2)
+
+## confusion matrix
+rf.pred <- predict(rf, test.ca)
+confusionMatrix(as.factor(rf.pred), as.factor(test.ca$price01))
+```
+We found that in both two types of importance plots, room_type and longitude are the top two important variables in our model.
+
+The accuracy of random forest model (accuracy=0.8427 ) is higher than logistic regression model (accuracy=0.8253). check it later.
+
+##### Boosting method
+```{r}
+#install.packages("adabag")
+library(adabag)
+library(rpart) 
+library(caret)
+
+train.ca$price01 <- as.factor(train.ca$price01)
+
+set.seed(211)
+boost <- boosting(price01 ~ .-price, data = train.ca) # It might take time to execute
+pred <- predict(boost, test.ca)
+confusionMatrix(as.factor(pred$class), as.factor(test.ca$price01))
+```
+
+The accuracy is a little bit lower than that of random forest model.
+
+Next, we will use train() function of the caret package.
+
+##Run bagging algorithm using method = “treebag” in the train() function.
+
+```{r}
+set.seed(211)
+bag <- train(price01 ~ .-price, data = train.ca, method = 'treebag')
+
+pred_bag <- predict(bag, test.ca,type = "raw" )
+
+confusionMatrix(pred_bag, as.factor(test.ca$price01))
+```
+
+The accuracy is also a little bit lower than that of random forest model but higher than logistic regression model.
+
+
+###XGBoost (eXtreme Gradient Boosting): An implementation of gradient boosted decision trees designed for speed and performance.
+```{r}
+library(xgboost)
+
+set.seed(211)
+xgbst <- train(price01 ~ .-price, data = train.ca, method = 'xgbTree')
+
+pred_xgbst <- predict(xgbst, test.ca,type = "raw" )
+
+confusionMatrix(pred_xgbst, as.factor(test.ca$price01))
+```
+
+The accuracy is also a little bit lower than that of random forest model but higher than all the other models.
+
+### Train a knn model: Use train(x,y,method=‘knn’) for knn
+```{r}
+knn <- train(price01 ~ .-price, data = train.ca, method = 'knn')
+pred_knn <- predict(knn, test.ca,type = "raw" )
+confusionMatrix(pred_knn, as.factor(test.ca$price01))
+```
+
+The accuracy of KNN model is the lowest one among all models we had above.
+
+
+***
+#### Fitting classification Trees
+
+
+***
+```{r}
+library(tree)
+tree.class=tree(price01 ~ .-price,airbnb2.ca) 
+tree.class
+summary(tree.class) # Residual mean deviance: Related to the mean squared error
+```
+
+Plot the tree
+```{r}
+plot(tree.class)
+text(tree.class,pretty=0) # pretty=0: instructs R to include the category names for any qualitative predictors, rather than simply displaying a letter for each category (which is what pretty=1 does). 
+```
+
+
+
+Partition the data into test and train, then predict.
+```{r}
+#split data
+#set.seed(211)
+#index.ca=sample(1:nrow(airbnb2),.7*nrow(airbnb2),replace=FALSE)
+#train.ca = airbnb2.ca[index.ca,]
+#test.ca = airbnb2.ca[-index.ca,]
+#price01.test = test.ca$price01
+```
+
+```{r}
+#install.packages("tree")
+library(tree)
+library(caret)
+```
+
+Fit the classification tree.
+
+```{r}
+
+tree.ca=tree(price01~.-price,B) # Removing the variable "Sales", because the variable "High" is derived from it.
+tree.ca
+summary(tree.ca) # Residual mean deviance: Related to the mean squared error
+```
+
+Plot the tree
+```{r}
+plot(tree.ca)
+text(tree.ca,pretty=0) # pretty=0: instructs R to include the category names for any qualitative predictors, rather than simply displaying a letter for each category (which is what pretty=1 does). 
+```
+
+
+Partition the data into test and train, then predict.
+```{r}
+set.seed(211)
+
+# Training Data
+train=sample(1:nrow(B), 200) # Randomly select 10000 number between 1 to nrow(B)
+
+# Test Data
+B.test=B[-train,]
+price.test=price01[-train]
+
+# Training Decision Tree
+tree.b=tree(as.factor(price01)~.-price,B,subset=train)
+
+# Prediction using Decision Tree
+tree.bpred=predict(tree.b,B.test, type = "class")
+
+# Assess accuracy
+confusionMatrix(tree.bpred, as.factor(price.test))
+```
+
+We see that the accuracy is very low (only 64.35%). Let's prune this tree. But what is the right size to prune?
+
+
+```{r}
+# ?cv.tree # Cross-validation for Choosing Tree Complexity: Runs a K-fold cross-validation experiment to find the deviance or number of misclassifications as a function of the cost-complexity parameter k.
+set.seed (211)
+cv.treeb =cv.tree(tree.b ,FUN=prune.misclass )
+plot(cv.treeb$size ,cv.treeb$dev ,type="b")
+cv.treeb$size
+cv.treeb$dev
+```
+
+We see that the error (dev or deviance) is minimized around size 6 (this number may change depending on the value of seed chosen, this also illustrates how unstable decision trees are). 
+
+```{r}
+prune.treeb=prune.misclass(tree.b,best=6) 
+# Prune down to 5 leaf nodes. Pruning level is a "hyper-parameter".
+
+plot(prune.treeb)
+text(prune.treeb,pretty=0)
+tree.pred=predict(prune.treeb,test.ca,type="class")
+table(as.factor(test.ca$price01), tree.pred)
+confusionMatrix(tree.pred, as.factor(test.ca$price01))
+```
+We see that pruning has increased accuracy from 64.35% to 67.9%!
+
+
+
+#### Fitting Regression Trees
+
+Using "price" as response variable instead of price01 (Predicting a numerical value using decision trees).
+```{r}
+set.seed(211)
+train.reg = sample(1:nrow(airbnb2), nrow(airbnb2)*0.7) # Use half of datapoints as training data
+tree.reg=tree(price~.,airbnb2,subset=train.reg)
+summary(tree.reg)
+plot(tree.reg)
+text(tree.reg,pretty=0)
+
+```
+
+
+
+
+```{r}
+prune.reg=prune.tree(tree.reg,best=2) #the largest size that can be pruned
+
+plot(prune.reg)
+text(prune.reg,pretty=0)
+```
+
+
+
+```{r}
+yhat=predict(tree.reg,newdata=airbnb2[-train,])
+test.reg=airbnb2[-train,"price"]
+plot(yhat,test.reg)
+abline(0,1)
+mean((yhat-test.reg)^2)
+```
+
+The plot looks a like *three slabs*, because for all the test points corresponding to a leaf node, the decision tree predicts the exact same value.
+
+#### Bagging, Random Forests, and Boosting
+
+***
+
+Bagging and Random Forest
+
+```{r}
+#install.packages("randomForest")
+library(randomForest)
+set.seed(211)
+#dim(airbnb2)
+bag.reg=randomForest(price~.,data=airbnb2,subset=train.reg,mtry=7,importance=TRUE) # mtry=7 indicates that ALL 7 predictors should be considered for each split of the tree. In other words, bagging should be done
+bag.reg
+```
+We see than the random forest contains 500 decision trees.
+
+```{r}
+yhat.bagging = predict(bag.reg,newdata=airbnb2[-train,])
+#plot(yhat.bagging, test.reg)
+#abline(0,1) # Straight line with intercept = 0 and slope = 1. 
+mean((yhat.bagging-test.reg)^2)
+```
+
+Note that the plot of predicted yhat and actual y-values is not looking like slabs (as it looked in the case of regression tree). This is because bagging is averaging over several decision trees.
+
+
+Let's use mtry = 4.
+```{r}
+set.seed(1)
+rf.reg=randomForest(price~.,data=airbnb2,subset=train.reg,mtry=4,importance=TRUE) # mtry = 6 (not all 13) indicates we need random forest
+rf.reg
+yhat.rfreg = predict(rf.reg,newdata=airbnb2[-train,])
+mean((yhat.rfreg-test.reg)^2)
+```
+We see that by using mtry=4 error has decreased from 81142.14 to 78978.84.
+
+Remember: Unlike decision tree, the ensembles are not interpretable. However, the randomForest package provides some interpretatbility methods.
+```{r}
+importance(rf.reg) # In Result: IncMSE is based upon the mean decrease of accuracy in predictions on the out of bag samples when a given variable is excluded from the model. IncNodePurity is a measure of the total increase in purity that results from splits over that variable, averaged over all trees.
+
+varImpPlot(rf.reg)
+```
+
+*Mean Decrease Accuracy (%IncMSE)* - This shows how much our model accuracy decreases if we leave out that variable.
+*Mean Decrease Gini (IncNodePurity)* - This is a measure of variable importance based on the Gini impurity index used for the calculating the splits in trees.
+
+The higher the value of mean decrease accuracy or mean decrease gini score, the higher the importance of the variable to our model.
+
+Note: 
+1. We see that availability_365 has highest value of %IncMSE and longitude has the highest value of IncNodePurity. This is expected because the running of Airbnb in New York are based on the anual availability of rooms. Also, location is very important according to our exploratory analysis.
+2. We also see that neighbourhood_group has lowest %IncMSE and IncNodePurity. This means that the group impact does not contribute a lot to the price of the Airbnbs in New York.
+
+
+### Let's now learn Boosting
+
+*Boosting*: Generalized Boosted Regression Modeling (GBM)
+```{r}
+#install.packages("gbm")
+library(gbm)
+set.seed(211)
+
+airbnb2$neighbourhood_group <- as.factor(airbnb2$neighbourhood_group)
+airbnb2$room_type <- as.factor(airbnb2$room_type)
+boost.reg=gbm(price~.,data=airbnb2[train,],distribution="gaussian",n.trees=5000,interaction.depth=5)
+summary(boost.reg) # We see that lstat and rm are by far the most important variables. 
+```
+In the above influence plot, we see that "longitude", "number_of_reviews", and "availability_365" have the highest influence. Let's see how the price change with these variables. We can do that using *partical dependence plots*. 
+
+### Partial dependence plots: Marginal effect of the selected variables on the response *****need to change values
+```{r}
+
+plot(boost.reg,i="longitude") 
+plot(boost.reg,i="number_of_reviews") 
+plot(boost.reg,i="availability_365")
+?Boston
+```
+
+*****************************change it.
+# We see that airbnb prices has a dramatic drop around longitude = -74. And the price experienced two-step drops around number of reviews = 60 and 200. 
+# Also, for availability < 300 days, the price doesn't change much.
+
+
+```{r}
+# interaction.depth: Integer specifying the maximum depth of each tree (i.e., the highest level of variable interactions allowed).
+# shrinkage (Learning Rate): Learning rate or step-size of each iteration. A bigger step-size makes execution faster, but it may not find optimal parameter.
+# distribution="gaussian" suggests that we are trying to minimize the "squared error". 
+boost.regin=gbm(price~.,data=airbnb2[train,],distribution="gaussian",n.trees=5000,interaction.depth=4,shrinkage=0.2)
+yhat.boostin=predict(boost.regin,newdata=airbnb2[-train,],n.trees=5000)
+mean((yhat.boostin-test.reg)^2)
+```
+
+***
+## Neural Nets
+
+
+***
+
+```{r}
+#install.packages("neuralnet")
+library(neuralnet)
+```
+
+Let's try Neural Network methods. Since neural net only deals with quantitative variables, we should convert all the qualitative variables (factors) to binary ("dummy") variables, with the model.matrix function -- it is one of the very rare situations in which R does not perform the transformation for you.
+```{r}
+str(airbnb2.ca)
+airbnb2.ca$high <- airbnb2.ca$price01 == 1 # Create dummy variable for 1=high price 
+airbnb2.ca$low  <- airbnb2.ca$price01 == 0 # Create dummy variable for 0=low price
+#View(airbnb2.ca)
+
+airbnb2.ca$neighbourhood_group<-factor(airbnb2.ca$neighbourhood_group, levels = c("Staten Island","Brooklyn","Manhattan", "Bronx", "Queens"), labels =c(1,2,3, 4, 5))
+airbnb2.ca$room_type<-factor(airbnb2.ca$room_type, levels = c("Private room","Entire home/apt","Shared room"), labels =c(1,2,3))
+
+str(airbnb2.ca)
+```
+
+```{r}
+#m <- model.matrix( 
+ # ~ high+low+neighbourhood_group+latitude+longitude+room_type+minimum_nights+number_of_reviews+availability_365, 
+  #data = airbnb2.ca)
+
+
+#set.seed(211)
+#nnet <-
+  #neuralnet(
+    #high + low ~ neighbourhood_group+latitude+longitude+room_type+minimum_nights+number_of_reviews+availability_365,
+    #data = airbnb2.ca,
+    #linear.output = FALSE, # linear.output = FALSE indicates that we are predicting categorical output
+    #hidden = c(2,3) # Two hidden layers with 2 and 3 nodes respectively.
+#  )
+```
+
+
+wait to see
+```{r}
+library(nnet)
+library(caret)
+# selected variables
+var <- c("high", "low", "latitude", "longitude", "minimum_nights", "number_of_reviews", "availability_365" )
+# partition the data
+set.seed(211)
+training = sample(row.names(airbnb2.ca), dim(airbnb2.ca)[1] * 0.7)
+testing = setdiff(row.names(airbnb2.ca), training)
+
+```
+Creating dummies for neighbourhood_group and room_type, because they are categorical variables with more than two levels.
+
+```{r}
+train <- cbind(
+  airbnb2.ca[training,c(var)],
+  class.ind(airbnb2.ca[training, ]$neighbourhood_group), # class.ind() generates Class Indicator Matrix From A Factor.
+  class.ind(airbnb2.ca[training, ]$room_type)
+) # cbind() binds new "columns" with dataframe (rbind binds rows)
+names(train) <- c(var,
+                      paste("neighbourhood_group_", c(1, 2, 3, 4, 5), sep = ""),
+                      paste("room_type_", c(1, 2, 3), sep = ""))
+```
+
+
+Repeating above for the testing data.
+```{r}
+test <- cbind(
+  airbnb2.ca[testing,c(var)],
+  class.ind(airbnb2.ca[testing, ]$neighbourhood_group), # class.ind() generates Class Indicator Matrix From A Factor.
+  class.ind(airbnb2.ca[testing, ]$room_type)
+) # cbind() binds new "columns" with dataframe (rbind binds rows)
+names(test) <- c(var,
+                      paste("neighbourhood_group_", c(1, 2, 3, 4, 5), sep = ""),
+                      paste("room_type_", c(1, 2, 3), sep = ""))
+```
+
+train the data
+```{r}
+neunet <- neuralnet(
+  high+low ~
+    latitude+longitude+minimum_nights+number_of_reviews+availability_365+
+    neighbourhood_group_1 +neighbourhood_group_2+neighbourhood_group_3+neighbourhood_group_4+neighbourhood_group_5+
+    room_type_1+room_type_2+room_type_3,
+  data = train,
+  hidden = c(2,3), # Run nn with two hidden layers having 2 and 3 nodes respectively.
+  linear.output = F, stepmax=1e11)
+#plot(neunet)
+ #train(), method =nnet
+```
+
+Prediction and confusion matrix.
+```{r}
+library(caret)
+predict.net <- compute(neunet, data.frame(airbnb2.ca$latitude, airbnb2.ca$longitude, airbnb2.ca$minimum_nights, airbnb2.ca$number_of_reviews, airbnb2.ca$availability_365, 
+    airbnb2.ca$neighbourhood_group_1, airbnb2.ca$neighbourhood_group_2, airbnb2.ca$neighbourhood_group_3, airbnb2.ca$neighbourhood_group_4, airbnb2.ca$neighbourhood_group_5, airbnb2.ca$room_type_1, airbnb2.ca$room_type_2, airbnb2.ca$room_type_3)) 
+
+# Find the class with maximum probability 
+predicted.cla=apply(predict.net$net.result,1,which.max)-1 # We are subtracting 1 to convert the base class into 0, because confusionMatrix() function requires base class to be 0  
+confusionMatrix(as.factor(ifelse(predicted.cla=="high", "1", "0")), as.factor(airbnb2.ca$price01))
+```
+
+***
+# Text Mining
+***
+```{r}
+#if you get an error loading any libraries, install them first using install.packages: 
+#install.packages("tidytext")
+#install.packages("textdata")
+library(tidytext)
+library(tidyverse)
+library(topicmodels)
+library(stringr)
+library(gutenbergr)
+library(reshape2)
+library(textdata)
+
+#Need to see documentation -- invoke help using ?:
+#?tidytext
+```
+```{r}
+
+library(wordcloud)
+library(RColorBrewer)
+#install.packages("wordcloud2")
+library(wordcloud2)
+library(tm)
+```
+
+
+create a vector containing only the text
+```{r}
+#View(airbnb1)
+text<-airbnb1$name
+#create a corpus
+docs<-Corpus(VectorSource(text))
+```
+
+clean the text.
+
+```{r}
+docs<-docs%>%
+  tm_map(removeNumbers)%>%
+  tm_map(removePunctuation)%>%
+  tm_map(stripWhitespace)
+
+docs<-tm_map(docs,content_transformer(tolower))
+docs<-tm_map(docs,removeWords, stopwords("english"))
+  
+  
+  
+  
+```
+creat a document-term-matrix
+
+```{r}
+dtm<- TermDocumentMatrix(docs)
+matrix<-as.matrix(dtm)
+words<-sort(rowSums(matrix), decreasing = TRUE)
+df<-data.frame(word=names(words), freq=words)
+  
+```
+
+
+generate the word cloud
+
+
+
+```{r}
+set.seed(211)
+
+wordcloud(words=df$word, freq=df$freq, min.freq=1, max.words = 200, random.order=FALSE, rot.per = 0.35,
+          colors=brewer.pal(8, "Dark2")) #random.order = FALSE shows the words in decreasing frequency
+
+```
+ 
+ The column of "name" in the data set not only shows the name of the Airbnb listings but also describes the features (e.g. location) and room conditions (e.g.size and room style).
+ 
+ As can be seen from the word cloud graph, the top 4 biggest and most frequently used words are room, bedroom, private, and apartment.
+ 
+ 
+ Now let's visualize word frequency.
+ 
+```{r}
+#find the frequency for the first 20 words
+head(df, 20)
+
+``` 
+plot word frequencies.
+
+```{r}
+
+barplot(df[1:10,]$freq, las = 2, names.arg = df[1:10,]$word, 
+        col ="orange", main ="Most frequently used words",
+        ylab = "Word frequencies")
+``` 
+ 
+ As we can see, "room" is used more than 10,000 times, and "bedroom" is used around 8000 times in the room listings.
+ 
+Sentiment analysis
+
+```{r}
+#install.packages("syuzhet")
+library(syuzhet)
+library(lubridate)
+library(ggplot2)
+library(scales)
+library(reshape2)
+library(dplyr)
+
+```
+
+```{r}
+t <- iconv(airbnb1$name)
+#obtain sentiment scores
+s <- get_nrc_sentiment(t)
+head(s, 5)
+
+```
+
+It's ranging from anger to trust, Negative and Positive.
+
+
+```{r}
+#transpose
+td<-data.frame(t(s))
+#The function rowSums computes column sums across rows for each level of a grouping variable.
+td_new <- data.frame(rowSums(td[2:2500]))
+#Transformation and cleaning
+names(td_new)[1] <- "count"
+td_new <- cbind("sentiment" = rownames(td_new), td_new)
+rownames(td_new) <- NULL
+td_new2<-td_new[1:8,]
+#Plot One - count of words associated with each sentiment
+quickplot(sentiment, data=td_new2, weight=count, geom="bar", fill=sentiment, ylab="count")+ggtitle("Airbnb's Name Sentiments")
+
+
+```
+
+Now we use four sentiment lexicons to find sentiment counts.
+
+```{r}
+get_sentiments("afinn")
+get_sentiments("bing")
+get_sentiments("nrc")
+
+
+
+```
+
