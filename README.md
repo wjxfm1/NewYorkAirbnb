@@ -7,13 +7,24 @@
 Airbnb, which stands for Air Beds & Breakfast, is a marketplace that connects travelers with local property owners. 
 New York City (NYC) has an extremely active Airbnb market with more than 48,000 listings as of August 2019 (this corresponds to a rental density of 102 rentals per square mile). 
 
-#### There is only one rmd file, and everything is included in it.
-#### For exploratory analysis, we start with text analysis and sentiment analysis for listing names.
-#### Five models were used to analyze the dataset: linear regression, logistic regression, k-nearest neighbors, tree models, and Neural Nets.
-#### We also apply 3-fold cross validation, variable selection approaches (backward, forward, and subset selection, and ensemble methods (bagging, random forest, and boosting, XGboost) to help us verify and tuning models. 
+### Instructions
 
-#### The file shows the thinking steps of how to approach or use functions in different libraries. 
-#### It may look a little bit messy, but this is the way I tried that reminds me to think differently. 
+The (10 minites challeange.rmd) file contains all the codes. The output can be found in (10 MT final file -1.pdf). The dataset can be found at (AB_NYC_2019.csv).
+
+* #### Step 1
+Clean the data based on missing values.
+
+* #### Step 2
+Excluded irrelevant variables, such as listing ID and lanlord’s name. This would leave us with 8 variables, with price being the response variable, along with 5 continuous variables and two categorical variables.
+
+* #### Step 3
+Perform exploratory analysis.
+
+* #### Step 4
+Run ML models including linear regression, logistic regression, k-nearest neighbors, tree models, and Neural Nets. We also apply 70% data to be training data and 30% data to be testing data, with variable selection approaches, such as backward selection, forward selection, and subset selection, and ensemble methods, such as bagging, random forest, and boosting to verify and tune models.
+
+* #### Step 5
+Create a word cloud with a word frequency bar plot below it. The top 4 most frequently used words are room, bedroom, private, and apartment.
 
 
 
