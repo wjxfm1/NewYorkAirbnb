@@ -1,6 +1,6 @@
 # NewYorkAirbnb
 ## Machine learning (ML) pipline for Predicting Adaptive and Maladaptive Traits
-```diff
+
 +  This repository is for the project.
 
 ### Instructions
