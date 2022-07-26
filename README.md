@@ -4,6 +4,7 @@
 +  This repository is for the project.
 
 ### Instructions
+adsfjlakjdflajdlfjal;djkflajsdlfkjalkdsjflkajsdjfalkjdfljassdkjflkjsdfl;kjasdkfja;kdjflakjdflajdlfjalkjsdflkjaldkjflkjsdfljaldkjflakjsdlf;ajdflkjaldkjfda;kdjflakdjfl;adjkflakdjflakjsdlfkja;ldjkf;lakjsdl;kfjask
 We built two types of modeling: day-level modeling and person-level modeling. For the day-level modeling, the input is daily features and one partipants have multiple<br /> values for one daily feature. For the person-lvel modeling, we aggreate multiple daily values into one person feature, which is the input of the ml learning pipline.<br /> Two modeling processes share the same ML pipeline. The ML pipeline includes three basic ML models: Lasso regression (Lasso), Random Forest regression (RF), and <br /> XGBoost regression (XGB). The fundamental training process is leave-one-particiapnt-out cross-validation, and the evaluation metrics includes MSE and MAE.
 - ## Step 1: Configure the parameter and directory.
 - * ### Go to param.py to set the reading path of dataset and thresholds used for cleaning dataset and selecting features.
