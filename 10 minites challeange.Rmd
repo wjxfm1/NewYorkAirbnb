@@ -1,5 +1,5 @@
 ---
-title: "5 minites"
+title: "10 minites"
 author: "Jie Wang"
 date: "10/15/2021"
 output: html_document
